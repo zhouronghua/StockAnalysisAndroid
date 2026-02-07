@@ -1,0 +1,42 @@
+# Docker构建时忽略的文件
+
+# Buildozer缓存
+.buildozer/
+bin/
+
+# Git
+.git/
+.gitignore
+
+# Python缓存
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# 虚拟环境
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 日志
+logs/
+*.log
+
+# 数据文件
+data/
+*.csv
+
+# 文档（不需要打包到镜像）
+*.md
+
+# OS文件
+.DS_Store
+Thumbs.db
+desktop.ini
