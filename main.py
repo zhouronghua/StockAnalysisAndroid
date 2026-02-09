@@ -52,15 +52,15 @@ class HomeScreen(Screen):
         toolbar.add_widget(btn_download)
         
         btn_analysis = Button(text='成交量分析')
-        btn_analysis.bind(on_press=lambda x: self.manager.transition.direction = 'left' or setattr(self.manager, 'current', 'analysis'))
+        btn_analysis.bind(on_press=lambda x: self.switch_screen('analysis'))
         toolbar.add_widget(btn_analysis)
         
         btn_history = Button(text='历史记录')
-        btn_history.bind(on_press=lambda x: self.manager.transition.direction = 'left' or setattr(self.manager, 'current', 'history'))
+        btn_history.bind(on_press=lambda x: self.switch_screen('history'))
         toolbar.add_widget(btn_history)
         
         btn_settings = Button(text='设置')
-        btn_settings.bind(on_press=lambda x: self.manager.transition.direction = 'left' or setattr(self.manager, 'current', 'settings'))
+        btn_settings.bind(on_press=lambda x: self.switch_screen('settings'))
         toolbar.add_widget(btn_settings)
         
         layout.add_widget(toolbar)
@@ -88,6 +88,11 @@ class HomeScreen(Screen):
         layout.add_widget(self.info_label)
         
         self.add_widget(layout)
+    
+    def switch_screen(self, screen_name):
+        """切换屏幕"""
+        self.manager.transition.direction = 'left'
+        self.manager.current = screen_name
     
     def download_data(self, instance):
         """下载数据"""
