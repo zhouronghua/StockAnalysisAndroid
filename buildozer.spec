@@ -14,7 +14,7 @@ source.exclude_dirs = tests, bin, .buildozer, src/core, src/storage, src/schedul
 # 版本信息
 version = 1.0.0
 # version.regex = __version__ = ['"](.*)['"]
-version.filename = %(source.dir)s/main.py
+# version.filename = %(source.dir)s/main.py
 
 # Python依赖（最小化版本，避免编译错误）
 requirements = python3,kivy==2.3.0,pillow,requests
