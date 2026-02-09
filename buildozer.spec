@@ -16,8 +16,8 @@ version = 1.0.0
 # version.regex = __version__ = ['"](.*)['"]
 version.filename = %(source.dir)s/main.py
 
-# Python依赖（简化版本，避免编译错误）
-requirements = python3,kivy==2.1.0,pillow,requests,android,pyjnius
+# Python依赖（最小化版本，避免编译错误）
+requirements = python3,kivy==2.3.0,pillow,requests
 
 # 安卓权限
 android.permissions = INTERNET,WRITE_EXTERNAL_STORAGE,READ_EXTERNAL_STORAGE,WAKE_LOCK,FOREGROUND_SERVICE,POST_NOTIFICATIONS,ACCESS_NETWORK_STATE
@@ -26,6 +26,8 @@ android.permissions = INTERNET,WRITE_EXTERNAL_STORAGE,READ_EXTERNAL_STORAGE,WAKE
 android.api = 31
 android.minapi = 21
 android.ndk = 25b
+android.skip_update = False
+android.accept_sdk_license = True
 
 # 应用图标和启动屏幕（暂时注释，使用默认）
 #icon.filename = %(source.dir)s/assets/icons/icon.png
