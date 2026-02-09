@@ -44,7 +44,6 @@ fullscreen = 0
 android.archs = arm64-v8a
 
 # 打包选项
-android.accept_sdk_license = True
 android.gradle_dependencies = 
 
 # 应用元数据
