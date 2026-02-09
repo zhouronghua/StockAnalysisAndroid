@@ -29,16 +29,17 @@ jobs:
       run: |
         sudo apt-get install -y \
           git zip unzip openjdk-11-jdk wget curl \
-          python3-pip autoconf libtool pkg-config \
+          python3-pip autoconf automake libtool pkg-config \
           zlib1g-dev libncurses5-dev libncursesw5-dev \
           cmake libffi-dev libssl-dev \
-          build-essential ccache
+          build-essential ccache autoconf-archive
     
     - name: 安装额外构建依赖
       run: |
         sudo apt-get install -y \
           libgdbm-dev libc6-dev libbz2-dev \
-          libreadline-dev libsqlite3-dev
+          libreadline-dev libsqlite3-dev \
+          libltdl-dev gettext
     
     - name: 安装Buildozer
       run: |
@@ -57,6 +58,7 @@ jobs:
       env:
         BUILDOZER_WARN_ON_ROOT: 0
         USE_SDK_WRAPPER: 1
+        P4A_RELEASE_TAG: "2024.01.21"
       run: |
         buildozer -v android debug
     

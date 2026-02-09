@@ -59,3 +59,11 @@ warn_on_root = 1
 
 # 构建目录
 bin_dir = ./bin
+
+# 使用稳定的python-for-android版本
+p4a.branch = master
+p4a.source_dir = 
+p4a.local_recipes = 
+p4a.hook = 
+p4a.bootstrap = sdl2
+p4a.port = 
