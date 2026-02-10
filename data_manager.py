@@ -1,11 +1,11 @@
 """
 Android应用数据管理模块
-简化版，适配移动端环境
+简化版，使用标准库，不依赖pandas
 """
 
 import os
 import glob
-import pandas as pd
+import csv
 from datetime import datetime
 from typing import List, Dict, Optional
 
@@ -37,8 +37,12 @@ class DataManager:
             return []
         
         try:
-            df = pd.read_csv(stock_list_file, dtype={'code': str})
-            return df.to_dict('records')
+            stocks = []
+            with open(stock_list_file, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    stocks.append(row)
+            return stocks
         except Exception as e:
             print(f'读取股票列表失败: {e}')
             return []
@@ -48,20 +52,20 @@ class DataManager:
         csv_files = glob.glob(os.path.join(self.daily_dir, '*.csv'))
         return len(csv_files)
     
-    def analyze_volume_surge(self, progress_callback=None) -> pd.DataFrame:
+    def analyze_volume_surge(self, progress_callback=None) -> List[Dict]:
         """
         分析成交量暴涨股票
         
         Args:
-            progress_callback: 进度回调函数
+            progress_callback: 进度回调函数(processed, total, found_count)
         
         Returns:
-            分析结果DataFrame
+            分析结果列表
         """
         csv_files = glob.glob(os.path.join(self.daily_dir, '*.csv'))
         
         if not csv_files:
-            return pd.DataFrame()
+            return []
         
         all_results = []
         processed = 0
@@ -83,17 +87,23 @@ class DataManager:
                 continue
         
         if not all_results:
-            return pd.DataFrame()
+            return []
         
-        # 转换为DataFrame并排序
-        results_df = pd.DataFrame(all_results)
-        results_df['date'] = pd.to_datetime(results_df['date'])
-        results_df = results_df.sort_values('date', ascending=False)
-        results_df = results_df.drop_duplicates(subset='stock_code', keep='first')
-        results_df['date'] = results_df['date'].dt.strftime('%Y-%m-%d')
-        results_df = results_df.sort_values('volume_ratio', ascending=False)
+        # 按日期排序，保留每只股票最新的记录
+        all_results.sort(key=lambda x: x['date'], reverse=True)
         
-        return results_df
+        # 去重：只保留每只股票最新的记录
+        seen_codes = set()
+        unique_results = []
+        for result in all_results:
+            if result['stock_code'] not in seen_codes:
+                unique_results.append(result)
+                seen_codes.add(result['stock_code'])
+        
+        # 按成交量倍数排序
+        unique_results.sort(key=lambda x: x['volume_ratio'], reverse=True)
+        
+        return unique_results
     
     def _analyze_single_stock(self, file_path: str) -> Optional[List[Dict]]:
         """
@@ -106,63 +116,88 @@ class DataManager:
             符合条件的记录列表
         """
         try:
-            df = pd.read_csv(file_path, dtype={'code': str})
+            # 读取CSV文件
+            with open(file_path, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                data = list(reader)
             
-            if len(df) < 10:
+            if len(data) < 10:
                 return None
             
-            # 确保日期排序
-            df['date'] = pd.to_datetime(df['date'])
-            df = df.sort_values('date')
+            # 按日期排序
+            data.sort(key=lambda x: x['date'])
             
             # 计算均线
-            if len(df) >= 120:
-                ma_period = 120
-            elif len(df) >= 60:
-                ma_period = 60
-            elif len(df) >= 30:
-                ma_period = 30
-            else:
-                ma_period = 10
-            
-            df['ma'] = df['close'].rolling(window=ma_period).mean()
+            ma_period = self._get_ma_period(len(data))
+            data = self._calculate_ma(data, ma_period)
             
             # 获取最近的数据
-            recent_data = df.tail(min(10, len(df)))
+            recent_data = data[-min(10, len(data)):]
             
             results = []
             
-            # 检查每一天
+            # 检查每一天（需要至少8天数据）
             for i in range(7, len(recent_data)):
-                current = recent_data.iloc[i]
+                current = recent_data[i]
                 
-                if pd.isna(current['ma']):
+                # 跳过MA为None的数据
+                if current.get('ma') is None:
                     continue
                 
                 # 计算前7天的平均成交量
-                prev_7_days = recent_data.iloc[i-7:i]
-                avg_7day_volume = prev_7_days['volume'].mean()
+                prev_7_days = recent_data[i-7:i]
+                volumes = [float(d['volume']) for d in prev_7_days if d.get('volume')]
                 
-                # 检查条件：当天成交量是前7天平均成交量的5倍以上
-                volume_ratio = current['volume'] / avg_7day_volume if avg_7day_volume > 0 else 0
+                if not volumes:
+                    continue
                 
-                if volume_ratio >= 5.0 and current['close'] > current['ma']:
+                avg_7day_volume = sum(volumes) / len(volumes)
+                current_volume = float(current['volume'])
+                
+                # 检查条件
+                volume_ratio = current_volume / avg_7day_volume if avg_7day_volume > 0 else 0
+                current_close = float(current['close'])
+                current_ma = float(current['ma'])
+                
+                if volume_ratio >= 5.0 and current_close > current_ma:
                     stock_code = os.path.basename(file_path).replace('.csv', '')
                     stock_name = self._get_stock_name(stock_code)
                     
                     results.append({
                         'stock_code': stock_code,
                         'stock_name': stock_name,
-                        'date': current['date'].strftime('%Y-%m-%d'),
-                        'close': float(current['close']),
-                        'volume_ratio': float(volume_ratio),
+                        'date': current['date'],
+                        'close': current_close,
+                        'volume_ratio': volume_ratio,
                         'ma_period': ma_period
                     })
             
             return results
         
         except Exception as e:
+            print(f'分析文件 {file_path} 失败: {e}')
             return None
+    
+    def _get_ma_period(self, data_length: int) -> int:
+        """根据数据长度确定均线周期"""
+        if data_length >= 120:
+            return 120
+        elif data_length >= 60:
+            return 60
+        elif data_length >= 30:
+            return 30
+        else:
+            return 10
+    
+    def _calculate_ma(self, data: List[Dict], period: int) -> List[Dict]:
+        """计算移动平均线"""
+        for i in range(len(data)):
+            if i < period - 1:
+                data[i]['ma'] = None
+            else:
+                prices = [float(data[j]['close']) for j in range(i - period + 1, i + 1)]
+                data[i]['ma'] = sum(prices) / len(prices)
+        return data
     
     def _get_stock_name(self, stock_code: str) -> str:
         """获取股票名称"""
@@ -174,17 +209,17 @@ class DataManager:
         
         return stock_code
     
-    def save_analysis_result(self, results_df: pd.DataFrame) -> str:
+    def save_analysis_result(self, results: List[Dict]) -> str:
         """
         保存分析结果
         
         Args:
-            results_df: 分析结果DataFrame
+            results: 分析结果列表
         
         Returns:
             保存的文件路径
         """
-        if results_df.empty:
+        if not results:
             return ''
         
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -192,7 +227,12 @@ class DataManager:
         filepath = os.path.join(self.results_dir, filename)
         
         try:
-            results_df.to_csv(filepath, index=False, encoding='utf-8-sig')
+            with open(filepath, 'w', encoding='utf-8', newline='') as f:
+                if results:
+                    fieldnames = results[0].keys()
+                    writer = csv.DictWriter(f, fieldnames=fieldnames)
+                    writer.writeheader()
+                    writer.writerows(results)
             return filepath
         except Exception as e:
             print(f'保存结果失败: {e}')
@@ -206,6 +246,7 @@ class DataManager:
         history = []
         for filepath in result_files:
             filename = os.path.basename(filepath)
+            
             # 从文件名提取时间
             try:
                 timestamp_str = filename.replace('volume_analysis_', '').replace('.csv', '')
@@ -216,8 +257,9 @@ class DataManager:
             
             # 读取文件获取记录数
             try:
-                df = pd.read_csv(filepath)
-                count = len(df)
+                with open(filepath, 'r', encoding='utf-8') as f:
+                    reader = csv.reader(f)
+                    count = sum(1 for row in reader) - 1  # 减去表头
             except:
                 count = 0
             
@@ -230,10 +272,12 @@ class DataManager:
         
         return history
     
-    def load_history_result(self, filepath: str) -> pd.DataFrame:
+    def load_history_result(self, filepath: str) -> List[Dict]:
         """加载历史分析结果"""
         try:
-            return pd.read_csv(filepath, dtype={'stock_code': str})
+            with open(filepath, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                return list(reader)
         except Exception as e:
             print(f'加载历史结果失败: {e}')
-            return pd.DataFrame()
+            return []

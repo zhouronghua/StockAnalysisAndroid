@@ -248,12 +248,12 @@ class VolumeAnalysisScreen(Screen):
             0
         )
     
-    def show_results(self, results_df):
+    def show_results(self, results):
         """显示结果"""
-        self.analysis_results = results_df
+        self.analysis_results = results
         self.results_list.clear_widgets()
         
-        if results_df.empty:
+        if not results:
             self.status_label.text = '状态: 未找到符合条件的股票'
             self.status_label.color = (1, 0.5, 0, 1)
             
@@ -264,11 +264,11 @@ class VolumeAnalysisScreen(Screen):
             )
             self.results_list.add_widget(no_result_label)
         else:
-            self.status_label.text = f'状态: 找到 {len(results_df)} 只股票'
+            self.status_label.text = f'状态: 找到 {len(results)} 只股票'
             self.status_label.color = (0, 1, 0, 1)
             
             # 保存结果
-            self.data_manager.save_analysis_result(results_df)
+            self.data_manager.save_analysis_result(results)
             
             # 添加表头
             header = Label(
@@ -281,10 +281,10 @@ class VolumeAnalysisScreen(Screen):
             self.results_list.add_widget(header)
             
             # 显示结果
-            for _, row in results_df.iterrows():
+            for row in results:
                 stock_code = row['stock_code']
                 stock_name = row['stock_name']
-                volume_ratio = row['volume_ratio']
+                volume_ratio = float(row['volume_ratio'])
                 date = row['date']
                 
                 # 截断股票名称
@@ -418,13 +418,13 @@ class HistoryScreen(Screen):
         self.status_label.text = '状态: 加载中...'
         
         try:
-            results_df = self.data_manager.load_history_result(filepath)
+            results = self.data_manager.load_history_result(filepath)
             
-            if results_df.empty:
+            if not results:
                 self.status_label.text = '状态: 记录为空'
                 return
             
-            self.status_label.text = f'状态: 共 {len(results_df)} 只股票'
+            self.status_label.text = f'状态: 共 {len(results)} 只股票'
             self.status_label.color = (0, 1, 0, 1)
             
             # 添加返回按钮
@@ -447,10 +447,10 @@ class HistoryScreen(Screen):
             self.history_list.add_widget(header)
             
             # 显示结果
-            for _, row in results_df.iterrows():
+            for row in results:
                 stock_code = row['stock_code']
                 stock_name = row.get('stock_name', stock_code)
-                volume_ratio = row['volume_ratio']
+                volume_ratio = float(row['volume_ratio'])
                 date = row['date']
                 
                 # 截断股票名称
