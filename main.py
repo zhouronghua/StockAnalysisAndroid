@@ -25,6 +25,7 @@ import glob
 sys.path.insert(0, os.path.dirname(__file__))
 
 from data_manager import DataManager
+from simple_downloader import SimpleDownloader
 
 
 def register_fonts():
@@ -239,15 +240,50 @@ class HomeScreen(Screen):
     
     def download_data(self, instance):
         """下载数据"""
-        self.status_label.text = '状态: 功能开发中...'
+        self.status_label.text = '状态: 准备下载...'
         self.status_label.color = (1, 1, 0, 1)
         
-        # TODO: 集成真实的数据下载功能
-        # 暂时提示用户手动准备数据
-        Clock.schedule_once(lambda dt: self.show_download_message(), 1)
+        # 在后台线程执行下载
+        threading.Thread(target=self.do_download, daemon=True).start()
     
-    def show_download_message(self):
-        self.status_label.text = '状态: 请确保数据目录中有股票数据'
+    def do_download(self):
+        """执行下载"""
+        try:
+            # 初始化下载器
+            downloader = SimpleDownloader(self.data_manager.base_path)
+            
+            # 下载所有股票
+            stats = downloader.download_all_stocks(
+                progress_callback=self.on_download_progress
+            )
+            
+            Clock.schedule_once(lambda dt: self.on_download_complete(stats), 0)
+        
+        except Exception as e:
+            error_msg = f'下载失败: {str(e)}'
+            Clock.schedule_once(lambda dt: self.on_download_error(error_msg), 0)
+    
+    def on_download_progress(self, current, total, success):
+        """下载进度更新"""
+        progress_text = f'状态: 下载中 {current}/{total}, 成功 {success} 只'
+        Clock.schedule_once(
+            lambda dt: setattr(self.status_label, 'text', progress_text),
+            0
+        )
+    
+    def on_download_complete(self, stats):
+        """下载完成"""
+        message = f'状态: 下载完成！成功 {stats["success"]} 只，失败 {stats["failed"]} 只'
+        self.status_label.text = message
+        self.status_label.color = (0, 1, 0, 1)
+        
+        # 刷新主界面
+        self.load_latest_results()
+    
+    def on_download_error(self, error_msg):
+        """下载错误"""
+        self.status_label.text = f'状态: {error_msg}'
+        self.status_label.color = (1, 0, 0, 1)
 
 
 class VolumeAnalysisScreen(Screen):
