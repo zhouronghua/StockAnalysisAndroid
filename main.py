@@ -14,6 +14,7 @@ from kivy.uix.gridlayout import GridLayout
 from kivy.properties import StringProperty, ListProperty
 from kivy.clock import Clock
 from kivy.utils import platform
+from kivy.core.text import LabelBase
 import threading
 
 # 导入核心业务模块
@@ -25,6 +26,60 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 # 暂时不导入复杂模块，避免依赖问题
 # from src.core.utils_android import setup_directories, setup_logger, Config
+
+
+def register_fonts():
+    """注册中文字体"""
+    font_paths = []
+    
+    # 1. 尝试项目中的字体文件
+    project_fonts = [
+        'fonts/NotoSansSC-Regular.ttf',
+        'fonts/SourceHanSansSC-Regular.ttf', 
+        'fonts/wqy-microhei.ttc'
+    ]
+    
+    for font_path in project_fonts:
+        full_path = os.path.join(os.path.dirname(__file__), font_path)
+        if os.path.exists(full_path):
+            font_paths.append(full_path)
+            print(f'找到字体文件: {full_path}')
+    
+    # 2. Android系统字体
+    if platform == 'android':
+        system_fonts = [
+            '/system/fonts/DroidSansFallback.ttf',
+            '/system/fonts/NotoSansCJK-Regular.ttc',
+            '/system/fonts/NotoSansSC-Regular.otf'
+        ]
+        for font_path in system_fonts:
+            if os.path.exists(font_path):
+                font_paths.append(font_path)
+                print(f'找到系统字体: {font_path}')
+                break
+    
+    # 3. 注册找到的第一个字体
+    if font_paths:
+        try:
+            LabelBase.register(
+                name='Chinese',
+                fn_regular=font_paths[0]
+            )
+            # 设为默认字体
+            LabelBase.register(
+                name='Roboto',  # Kivy默认字体名
+                fn_regular=font_paths[0]
+            )
+            print(f'成功注册中文字体: {font_paths[0]}')
+        except Exception as e:
+            print(f'字体注册失败: {e}')
+    else:
+        print('警告: 未找到中文字体文件')
+        print('请在fonts目录下添加中文字体，参考fonts/README.md')
+
+
+# 注册字体（在创建任何UI之前）
+register_fonts()
 
 
 class HomeScreen(Screen):

@@ -7,9 +7,10 @@ package.domain = com.tradeanalytics
 
 # 源代码配置
 source.dir = .
-source.include_exts = py,png,jpg,kv,atlas
+source.include_exts = py,png,jpg,kv,atlas,ttf,ttc,otf
 source.exclude_exts = spec
 source.exclude_dirs = tests, bin, .buildozer, src/core, src/storage, src/scheduler, src/ui
+source.include_patterns = fonts/*
 
 # 版本信息
 version = 1.0.0
