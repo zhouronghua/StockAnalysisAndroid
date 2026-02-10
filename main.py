@@ -127,34 +127,115 @@ class HomeScreen(Screen):
         )
         layout.add_widget(self.status_label)
         
-        # 数据统计
-        self.info_label = Label(
-            text='',
-            size_hint_y=0.67,
-            markup=True
-        )
-        layout.add_widget(self.info_label)
+        # 股票列表区域
+        self.scroll_view = ScrollView(size_hint_y=0.67)
+        self.stock_list = GridLayout(cols=1, spacing=5, size_hint_y=None)
+        self.stock_list.bind(minimum_height=self.stock_list.setter('height'))
+        self.scroll_view.add_widget(self.stock_list)
+        layout.add_widget(self.scroll_view)
         
         self.add_widget(layout)
         
         # 加载初始数据
-        Clock.schedule_once(lambda dt: self.update_stats(), 0.5)
+        Clock.schedule_once(lambda dt: self.load_latest_results(), 0.5)
     
     def switch_screen(self, screen_name):
         """切换屏幕"""
         self.manager.transition.direction = 'left'
         self.manager.current = screen_name
     
-    def update_stats(self):
-        """更新统计信息"""
+    def load_latest_results(self):
+        """加载最新的分析结果"""
+        self.stock_list.clear_widgets()
+        
+        # 获取数据统计
         stock_count = self.data_manager.get_stock_count()
         
-        info_text = f'[b]数据统计[/b]\n\n'
-        info_text += f'股票数据: {stock_count} 只\n'
-        info_text += f'数据目录: {self.data_manager.base_path}\n\n'
-        info_text += f'[size=14]点击上方按钮进行操作[/size]'
+        # 添加统计信息头部
+        info_header = Label(
+            text=f'数据统计: 共 {stock_count} 只股票',
+            size_hint_y=None,
+            height=30,
+            font_size='14sp',
+            bold=True
+        )
+        self.stock_list.add_widget(info_header)
         
-        self.info_label.text = info_text
+        # 尝试加载最新的分析结果
+        history_files = self.data_manager.get_history_files()
+        
+        if history_files:
+            latest_file = history_files[0]
+            results = self.data_manager.load_history_result(latest_file['filepath'])
+            
+            if results:
+                # 显示最新分析结果
+                result_header = Label(
+                    text=f'\n最近分析结果 ({latest_file["date"]})：',
+                    size_hint_y=None,
+                    height=40,
+                    font_size='14sp'
+                )
+                self.stock_list.add_widget(result_header)
+                
+                # 添加表头
+                header = Label(
+                    text=f'{"代码":<10} {"名称":<10} {"倍数":<8} {"日期"}',
+                    size_hint_y=None,
+                    height=30,
+                    font_name='RobotoMono-Regular',
+                    bold=True
+                )
+                self.stock_list.add_widget(header)
+                
+                # 显示前10条结果
+                for row in results[:10]:
+                    stock_code = row['stock_code']
+                    stock_name = row['stock_name']
+                    volume_ratio = float(row['volume_ratio'])
+                    date = row['date']
+                    
+                    # 截断股票名称
+                    if len(stock_name) > 6:
+                        stock_name = stock_name[:6]
+                    
+                    text = f'{stock_code:<10} {stock_name:<10} {volume_ratio:>5.1f}x {date}'
+                    
+                    result_label = Label(
+                        text=text,
+                        size_hint_y=None,
+                        height=30,
+                        font_name='RobotoMono-Regular'
+                    )
+                    self.stock_list.add_widget(result_label)
+                
+                if len(results) > 10:
+                    more_label = Label(
+                        text=f'\n... 还有 {len(results) - 10} 只股票',
+                        size_hint_y=None,
+                        height=40,
+                        color=(0.7, 0.7, 0.7, 1)
+                    )
+                    self.stock_list.add_widget(more_label)
+                
+                self.status_label.text = f'状态: 显示最近 {len(results[:10])} 只股票'
+                self.status_label.color = (0, 1, 0, 1)
+            else:
+                self.show_no_results()
+        else:
+            self.show_no_results()
+    
+    def show_no_results(self):
+        """显示无结果提示"""
+        no_result_label = Label(
+            text='\n暂无分析结果\n\n请点击"成交量分析"执行分析',
+            size_hint_y=None,
+            height=100
+        )
+        self.stock_list.add_widget(no_result_label)
+        
+        self.status_label.text = '状态: 暂无数据'
+        self.status_label.color = (1, 0.5, 0, 1)
     
     def download_data(self, instance):
         """下载数据"""
@@ -167,7 +248,6 @@ class HomeScreen(Screen):
     
     def show_download_message(self):
         self.status_label.text = '状态: 请确保数据目录中有股票数据'
-        self.update_stats()
 
 
 class VolumeAnalysisScreen(Screen):
